@@ -30,6 +30,7 @@ fn main() {
     let home = std::env::var("RUSTUP_HOME").expect("Expected RUSTUP_HOME env var to bet set");
     let toolchain =
         std::env::var("RUSTUP_TOOLCHAIN").expect("Expected RUSTUP_TOOLCHAIN env var to bet set");
+    let target = std::env::var("TARGET").expect("Expected TARGET env var to bet set");
 
     let lib_ext = OsStr::new(if build_cfg!(target_os = "windows") {
         "dll"
@@ -42,6 +43,8 @@ fn main() {
     let mut lib_path = PathBuf::from(&home);
     lib_path.push("toolchains");
     lib_path.push(toolchain);
+    lib_path.push("lib/rustlib");
+    lib_path.push(target);
 
     let mut found = false;
     for lib_path in [lib_path.join("lib"), lib_path.join("bin")] {
@@ -90,6 +93,11 @@ fn main() {
     }
 
     if !found {
-        panic!("Failed to find std lib in toolchain directory!");
+        panic!(
+            "Failed to find std lib in toolchain directory!
+            home: {home:?}
+            lib_path: {lib_path:?}
+            lib_ext: {lib_ext:?}"
+        );
     }
 }
