@@ -43,11 +43,13 @@ fn main() {
     let mut lib_path = PathBuf::from(&home);
     lib_path.push("toolchains");
     lib_path.push(toolchain);
-    lib_path.push("lib/rustlib");
-    lib_path.push(target);
 
     let mut found = false;
-    for lib_path in [lib_path.join("lib"), lib_path.join("bin")] {
+    for lib_path in [
+        lib_path.join("lib"),
+        lib_path.join("bin"),
+        lib_path.join("lib/rustlib").join(target).join("lib"),
+    ] {
         if !lib_path.is_dir() {
             continue;
         }
