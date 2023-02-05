@@ -27,9 +27,17 @@ fn main() {
         )
     };
 
-    let home = std::env::var("RUSTUP_HOME").expect("Expected RUSTUP_HOME env var to bet set");
-    let toolchain =
-        std::env::var("RUSTUP_TOOLCHAIN").expect("Expected RUSTUP_TOOLCHAIN env var to bet set");
+    let rustc = std::env::var("RUSTC").expect("Expected RUSTC env var to bet set");
+    let sysroot = String::from_utf8(
+        std::process::Command::new(rustc)
+            .args(["--print", "sysroot"])
+            .output()
+            .expect("rustc sysroot")
+            .stdout,
+    )
+    .expect("sysroot as utf8");
+    let sysroot = sysroot.trim();
+
     let target = std::env::var("TARGET").expect("Expected TARGET env var to bet set");
 
     let lib_ext = OsStr::new(if build_cfg!(target_os = "windows") {
@@ -40,9 +48,7 @@ fn main() {
         "so"
     });
 
-    let mut lib_path = PathBuf::from(&home);
-    lib_path.push("toolchains");
-    lib_path.push(toolchain);
+    let lib_path = PathBuf::from(sysroot);
 
     let mut found = false;
     for lib_path in [
@@ -97,7 +103,6 @@ fn main() {
     if !found {
         panic!(
             "Failed to find std lib in toolchain directory!
-            home: {home:?}
             lib_path: {lib_path:?}
             lib_ext: {lib_ext:?}"
         );
