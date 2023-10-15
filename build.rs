@@ -1,8 +1,8 @@
 #[macro_use]
 extern crate build_cfg;
 
-use std::{borrow::Cow, ffi::OsStr, path::PathBuf};
 use std::path::Path;
+use std::{borrow::Cow, ffi::OsStr, path::PathBuf};
 
 #[build_cfg_main]
 fn main() {
@@ -52,6 +52,10 @@ fn main() {
     let lib_path = PathBuf::from(sysroot);
 
     let mut found = false;
+    let mut remaining = 1;
+    if cfg!(feature = "link-test") {
+        remaining += 1
+    };
     for lib_path in [
         lib_path.join("lib"),
         lib_path.join("bin"),
@@ -77,31 +81,35 @@ fn main() {
             })
             .filter(|path| path.extension() == Some(lib_ext))
         {
+            if remaining <= 0 {
+                break;
+            }
             if let Some(os_file_name) = lib.file_name() {
                 let file_name = os_file_name.to_string_lossy();
                 let file_name = file_name
                     .strip_prefix("lib")
                     .unwrap_or_else(|| file_name.as_ref());
                 if file_name.starts_with("std-") {
-                    found = true;
+                    remaining -= 1;
                     let dst = target_dir.join(os_file_name);
                     if !dst.exists() {
-                        copy_file(&lib, &dst)
-                            .expect("Failed to copy std lib to target directory");
+                        copy_file(&lib, &dst).expect("Failed to copy std lib to target directory");
                     }
                 } else if cfg!(feature = "link-test") && file_name.starts_with("test-") {
-                    found = true;
+                    remaining -= 1;
                     let dst = target_dir.join(os_file_name);
                     if !dst.exists() {
-                        copy_file(&lib, &dst)
-                            .expect("Failed to copy test lib to target directory");
+                        copy_file(&lib, &dst).expect("Failed to copy test lib to target directory");
                     }
                 }
             }
         }
+        if remaining <= 0 {
+            break;
+        }
     }
 
-    if !found {
+    if remaining > 0 {
         panic!(
             "Failed to find std lib in toolchain directory!
             lib_path: {lib_path:?}
@@ -110,14 +118,16 @@ fn main() {
     }
 }
 
-
 fn copy_file(src: &Path, dst: &Path) -> std::io::Result<()> {
     std::fs::copy(src, dst)?;
 
     #[cfg(feature = "filetime")]
     {
         let src_meta = src.metadata()?;
-        filetime::set_file_mtime(dst, filetime::FileTime::from_last_modification_time(&src_meta))?;
+        filetime::set_file_mtime(
+            dst,
+            filetime::FileTime::from_last_modification_time(&src_meta),
+        )?;
     }
 
     Ok(())
