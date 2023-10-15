@@ -2,6 +2,7 @@
 extern crate build_cfg;
 
 use std::{borrow::Cow, ffi::OsStr, path::PathBuf};
+use std::path::Path;
 
 #[build_cfg_main]
 fn main() {
@@ -85,14 +86,14 @@ fn main() {
                     found = true;
                     let dst = target_dir.join(os_file_name);
                     if !dst.exists() {
-                        std::fs::copy(&lib, dst)
+                        copy_file(&lib, &dst)
                             .expect("Failed to copy std lib to target directory");
                     }
                 } else if cfg!(feature = "link-test") && file_name.starts_with("test-") {
                     found = true;
                     let dst = target_dir.join(os_file_name);
                     if !dst.exists() {
-                        std::fs::copy(&lib, dst)
+                        copy_file(&lib, &dst)
                             .expect("Failed to copy test lib to target directory");
                     }
                 }
@@ -107,4 +108,17 @@ fn main() {
             lib_ext: {lib_ext:?}"
         );
     }
+}
+
+
+fn copy_file(src: &Path, dst: &Path) -> std::io::Result<()> {
+    std::fs::copy(src, dst)?;
+
+    #[cfg(feature = "filetime")]
+    {
+        let src_meta = src.metadata()?;
+        filetime::set_file_mtime(dst, filetime::FileTime::from_last_modification_time(&src_meta))?;
+    }
+
+    Ok(())
 }
